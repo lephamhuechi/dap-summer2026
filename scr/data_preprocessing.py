@@ -1,15 +1,3 @@
-"""
-data_preprocessing.py — E-commerce Dynamic Pricing
-Dataset: ecommerce_dataset_updated.csv
-Columns: User_ID, Product_ID, Category, Price (Rs.), Discount (%), Final_Price(Rs.), Payment_Method, Purchase_Date
-
-Changes from ride-sharing original:
-  - Removed Vehicle_Type / Number_of_Riders / Number_of_Drivers mapping
-  - Added log-price and log-final-price features for elasticity regression
-  - Added price_bin, discount_bin columns for CR/margin analysis
-  - Added purchase volume proxy per (Category, price_bin) for demand modeling
-  - Added time features (month, day_of_week) for seasonality controls
-"""
 
 import pandas as pd
 import numpy as np

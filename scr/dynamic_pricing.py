@@ -1,15 +1,3 @@
-"""
-dynamic_pricing.py — E-commerce Dynamic Pricing
-Dataset: ecommerce_dataset_updated.csv
-
-Changes from ride-sharing original:
-  - Removed Number_of_Riders / Number_of_Drivers logic
-  - Demand signal = purchase_count per (Category, price_bin)
-  - Supply signal = discount_pct (high discount = oversupply / clearance)
-  - Added price_elasticity estimation via log-log OLS per category
-  - Added optimal_price computation: P* = MC / (1 + 1/elasticity)
-  - Revenue and margin simulation columns added
-"""
 
 import numpy as np
 import pandas as pd

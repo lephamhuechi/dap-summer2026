@@ -1,15 +1,3 @@
-"""
-model_training.py — E-commerce Dynamic Pricing
-Dataset: ecommerce_dataset_updated.csv
-
-Changes from ride-sharing original:
-  - Target: adjusted_price (computed by dynamic_pricing.py pipeline)
-  - Features: log_price, discount_pct, category_encoded, month,
-              purchase_count, day_of_week, margin_pct
-  - Added feature importance printout (key for pricing team interpretation)
-  - Added cross-val R² for more robust evaluation on small dataset (3.6k rows)
-  - Model saved to model.pkl by default
-"""
 
 import pandas as pd
 import numpy as np

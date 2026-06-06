@@ -1,14 +1,3 @@
-"""
-predict.py — E-commerce Dynamic Pricing
-Dataset: ecommerce_dataset_updated.csv
-
-Changes from ride-sharing original:
-  - Inputs: category, base_price, discount_pct, purchase_count, month, day_of_week
-  - Removed Vehicle_Type, Number_of_Riders, Number_of_Drivers
-  - Added rule-based fallback when model isn't available
-  - Added predict_batch() for DataFrame input (useful for pricing jobs)
-  - Added pricing_recommendation() for human-readable output
-"""
 
 import numpy as np
 import pandas as pd
