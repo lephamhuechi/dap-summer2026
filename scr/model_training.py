@@ -109,4 +109,4 @@ def train_model(
 
 
 if __name__ == "__main__":
-    train_model(data_path="../data/ecommerce_dataset_updated.csv")
+    train_model(data_path="data/ecommerce_dataset_updated.csv")
