@@ -37,12 +37,12 @@ def train_model(
 
     Returns: (model, feature_names, evaluation_metrics_dict)
     """
-    # 1. Load & preprocess
+    # Load & preprocess
     print("Loading data...")
     df = load_data(data_path)
     df = preprocess_data(df)
 
-    # 2. Compute dynamic pricing (creates adjusted_price column)
+    # Compute dynamic pricing (creates adjusted_price column)
     print("Computing dynamic pricing...")
     df, elasticities = calculate_dynamic_pricing(df)
 
@@ -51,7 +51,7 @@ def train_model(
         tag = "elastic" if elast is not None and elast < -1 else "inelastic"
         print(f"  {cat:<18} β = {elast!s:<8}  [{tag}]")
 
-    # 3. Prepare features
+    # Prepare features
     df = df.dropna(subset=FEATURE_COLS + [TARGET_COL])
     X = df[FEATURE_COLS]
     y = df[TARGET_COL]
@@ -60,7 +60,7 @@ def train_model(
         X, y, test_size=0.2, random_state=42
     )
 
-    # 4. Train
+    # Train
     print(f"\nTraining {model_type} on {len(X_train)} samples...")
     if model_type == "gradient_boost":
         model = GradientBoostingRegressor(
@@ -73,7 +73,7 @@ def train_model(
 
     model.fit(X_train, y_train)
 
-    # 5. Evaluate
+    # Evaluate
     y_pred   = model.predict(X_test)
     cv_r2    = cross_val_score(model, X, y, cv=5, scoring="r2")
 
@@ -101,7 +101,7 @@ def train_model(
         bar = "█" * int(imp * 40)
         print(f"  {feat:<22} {bar} {imp:.3f}")
 
-    # 7. Save
+    # Save
     joblib.dump({"model": model, "features": FEATURE_COLS}, save_path)
     print(f"\nModel saved → {save_path}")
 

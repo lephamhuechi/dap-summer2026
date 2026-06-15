@@ -2,7 +2,6 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-# Fix path — đảm bảo Python tìm thấy các file cùng thư mục
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -70,10 +69,6 @@ def load_pipeline(data_path: str = DATA_PATH):
     return df, elasticities
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CHART 1 — Price elasticity by category (horizontal bar + CI)
-# ══════════════════════════════════════════════════════════════════════════════
-
 def plot_elasticity(df):
     cats   = list(ELASTICITY_PRIOR.keys())
     betas  = [ELASTICITY_PRIOR[c] for c in cats]
@@ -118,43 +113,58 @@ def plot_elasticity(df):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def plot_cr_vs_price(df):
-    bin_stats = (df.groupby("price_bin", observed=True)
-                   .agg(
-                       purchases=("price", "count"),
-                       avg_price=("price", "mean"),
-                       avg_margin=("margin_pct", "mean")
-                   ).reset_index())
+    """
+    Simulated CR vs Price curve based on elasticity priors (Table 2).
 
-    median_pur = bin_stats["purchases"].median()
-    bin_stats["cr_index"] = (bin_stats["purchases"] / median_pur * 100).round(1)
+    CR(P) = CR0 * (P / P0) ** beta
 
-    fig, ax1 = plt.subplots(figsize=(9, 5))
+    For each category, CR is normalized to 100 at the current average
+    price (P0). The curve illustrates the theoretical demand response
+    implied by the estimated elasticity coefficients, since the raw
+    Kaggle dataset is synthetic and does not contain a real demand/CR
+    signal that varies with price (see Discussion, dataset limitations).
+    """
+    avg_price = df.groupby("Category")["price"].mean()
+    avg_margin = df.groupby("Category")["margin_pct"].mean()
+
+    price_mult = np.linspace(0.7, 1.5, 60)  # -30% to +50% of current price
+
+    fig, ax1 = plt.subplots(figsize=(9.5, 5.5))
     ax2 = ax1.twinx()
 
-    x = np.arange(len(bin_stats))
-    ax1.plot(x, bin_stats["cr_index"], color="#3266ad", marker="o",
-             linewidth=2.5, markersize=8, label="CR Index")
-    ax1.fill_between(x, bin_stats["cr_index"], alpha=0.12, color="#3266ad")
-    ax2.bar(x, bin_stats["avg_margin"], color="#1D9E75", alpha=0.4,
-            width=0.4, label="Avg Margin %")
+    for cat, beta in ELASTICITY_PRIOR.items():
+        cr_curve = 100 * (price_mult ** beta)
+        ax1.plot(price_mult, cr_curve, color=CAT_COLORS[cat],
+                 linewidth=2, label=f"{cat} (β={beta})")
 
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(bin_stats["price_bin"].astype(str), fontsize=10)
-    ax1.set_ylabel("CR Index (100 = median)", color="#3266ad", fontsize=11)
+    # Reference vertical line at current price (multiplier = 1.0)
+    ax1.axvline(1.0, color="black", linestyle="--", linewidth=1, alpha=0.6)
+    ax1.text(1.01, 102, "current price", fontsize=8, color="black", alpha=0.7)
+
+    # Average margin trend (illustrative, increases with price)
+    margin_curve = avg_margin.mean() + (price_mult - 1) * 100 * 0.45
+    ax2.plot(price_mult, margin_curve, color="#1D9E75", linewidth=2,
+             linestyle=":", label="Avg margin trend")
+
+    ax1.set_xlabel("Price Multiplier (relative to current price)", fontsize=11)
+    ax1.set_ylabel("CR Index (100 = current price)", color="#3266ad", fontsize=11)
     ax2.set_ylabel("Gross Margin %", color="#1D9E75", fontsize=11)
-    ax1.set_title("Conversion Rate Index & Margin vs Price Bin",
-                  fontsize=13, fontweight="bold")
-    ax1.set_xlabel("Price Bin (quintiles)", fontsize=11)
+    ax1.set_title("Simulated CR vs. Price Curves by Category\n"
+                   "(based on elasticity priors, Table 2)",
+                   fontsize=13, fontweight="bold")
 
     lines1, labels1 = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper right", fontsize=9)
-    ax1.grid(axis="y", alpha=0.3)
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper right",
+               fontsize=8, ncol=2)
+    ax1.grid(alpha=0.3)
     ax1.set_facecolor("#fafaf8")
+    ax1.set_xlim(0.7, 1.5)
+    ax1.set_ylim(0, max(160, 100 * (0.7 ** min(ELASTICITY_PRIOR.values()))))
     fig.tight_layout()
     fig.savefig(CHART_DIR / "02_cr_vs_price_bin.png", dpi=150)
     plt.close()
-    print("✓ Chart 2: CR vs price bin")
+    print("✓ Chart 2: CR vs price (elasticity-based simulation)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
