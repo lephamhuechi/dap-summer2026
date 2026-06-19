@@ -2,6 +2,7 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+# Fix path — đảm bảo Python tìm thấy các file cùng thư mục
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +69,10 @@ def load_pipeline(data_path: str = DATA_PATH):
     df["optimal_price_est"] = (df["price"] * df["optimal_mult"]).round(2)
     return df, elasticities
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CHART 1 — Price elasticity by category (horizontal bar + CI)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def plot_elasticity(df):
     cats   = list(ELASTICITY_PRIOR.keys())
@@ -172,9 +177,19 @@ def plot_cr_vs_price(df):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def plot_revenue_parabola(df):
+    """
+    Profit simulation curve by category.
+
+    Profit(m) = (P0*m - c) * (v0 * m^beta),  c = COST_RATIO * P0
+
+    Unlike revenue (which is monotonic for constant elasticity), profit
+    is a true concave curve (parabola-like) with an interior maximum.
+    The maximizing multiplier m* matches the Lerner-rule optimal price
+    P* = c / (1 + 1/beta)  =>  m* = P*/P0, marked in red.
+    """
     avg_price = df.groupby("Category")["price"].mean()
     avg_vol   = df.groupby("Category")["purchase_count"].mean()
-    mults     = np.linspace(0.7, 1.6, 100)
+    mults     = np.linspace(0.5, 4.5, 300)
 
     fig, axes = plt.subplots(2, 4, figsize=(14, 7))
     axes = axes.flatten()
@@ -184,27 +199,57 @@ def plot_revenue_parabola(df):
         beta  = ELASTICITY_PRIOR[cat]
         p0    = avg_price.get(cat, 200)
         v0    = avg_vol.get(cat, 100)
-        opt_m = OPTIMAL_MULT[cat]
+        c     = COST_RATIO * p0
 
-        revenues = [p0 * m * v0 * (m ** beta) for m in mults]
-        opt_rev  = p0 * opt_m * v0 * (opt_m ** beta)
+        # Profit(m) = (p0*m - c) * v0 * m^beta
+        profits = (p0 * mults - c) * v0 * (mults ** beta)
 
-        ax.plot(mults, revenues, color=CAT_COLORS[cat], linewidth=2)
-        ax.axvline(opt_m, color="red", linestyle="--", linewidth=1, alpha=0.8)
-        ax.scatter([opt_m], [opt_rev], color="red", zorder=5, s=60)
-        ax.annotate(f"opt={opt_m:.2f}×", xy=(opt_m, opt_rev),
-                    xytext=(opt_m + 0.05, opt_rev),
-                    fontsize=8, color="red")
+        ax.plot(mults, profits, color=CAT_COLORS[cat], linewidth=2)
+        ax.axhline(0, color="gray", linewidth=0.6, alpha=0.5)
+
+        if beta < -1:
+            # Interior maximum exists (Lerner rule): P* = c / (1 + 1/beta)
+            p_star = c / (1 + 1 / beta)
+            m_star = p_star / p0
+
+            if 0.5 <= m_star <= 4.5:
+                profit_star = (p0 * m_star - c) * v0 * (m_star ** beta)
+                ax.axvline(m_star, color="red", linestyle="--", linewidth=1, alpha=0.8)
+                ax.scatter([m_star], [profit_star], color="red", zorder=5, s=60)
+                ax.annotate(f"m*={m_star:.2f}\u00d7", xy=(m_star, profit_star),
+                            xytext=(m_star + 0.06, profit_star),
+                            fontsize=8, color="red")
+            else:
+                # Mathematical optimum lies outside the realistic pricing
+                # range; profit is still increasing/decreasing monotonically
+                # within [0.5, 2.0].
+                ax.text(0.97, 0.05,
+                        f"m*={m_star:.2f}\u00d7 (outside range)\n"
+                        f"|\u03b2|={abs(beta):.2f}",
+                        transform=ax.transAxes, ha="right", va="bottom",
+                        fontsize=7.5, color="#185FA5",
+                        bbox=dict(boxstyle="round,pad=0.3", fc="#E6F1FB", ec="none"))
+        else:
+            # |beta| < 1: inelastic demand -> profit increases monotonically
+            # over this range; no interior maximum (demand too unresponsive).
+            ax.text(0.97, 0.05,
+                    f"|\u03b2|={abs(beta):.2f} < 1\nno interior max\n(inelastic)",
+                    transform=ax.transAxes, ha="right", va="bottom",
+                    fontsize=7.5, color="#993C1D",
+                    bbox=dict(boxstyle="round,pad=0.3", fc="#FAECE7", ec="none"))
+
         ax.set_title(cat, fontsize=10, fontweight="bold", color=CAT_COLORS[cat])
         ax.set_xlabel("Price mult", fontsize=8)
-        ax.set_ylabel("Sim. Revenue", fontsize=8)
+        ax.set_ylabel("Sim. Profit", fontsize=8)
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(
             lambda v, _: f"₹{v/1000:.0f}k"))
+        ax.set_xlim(0.5, 4.5)
         ax.grid(alpha=0.3)
         ax.set_facecolor("#fafaf8")
 
     axes[-1].set_visible(False)
-    fig.suptitle("Revenue Simulation Parabola by Category\n(red = optimal price point)",
+    fig.suptitle("Profit Simulation Curve by Category\n"
+                  "(red = profit-maximizing price where it exists, Lerner rule)",
                  fontsize=13, fontweight="bold")
     fig.tight_layout()
     fig.savefig(CHART_DIR / "03_revenue_parabola.png", dpi=150)

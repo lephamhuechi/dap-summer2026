@@ -1,13 +1,30 @@
-
 import pandas as pd
 import numpy as np
 import joblib
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from pathlib import Path
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 
 from data_preprocessing import load_data, preprocess_data
 from dynamic_pricing import calculate_dynamic_pricing
+
+CHART_DIR = Path("charts")
+CHART_DIR.mkdir(exist_ok=True)
+
+# Display labels for chart (keep FEATURE_COLS as the real column names)
+FEATURE_LABELS = {
+    "log_price":        "Log-price",
+    "discount_pct":     "Discount %",
+    "category_encoded": "Category",
+    "month":            "Month",
+    "day_of_week":      "Day of week",
+    "purchase_count":   "Purchase count",
+    "margin_pct":       "Margin %",
+}
 
 
 # ── Feature config ────────────────────────────────────────────────────────────
@@ -23,6 +40,54 @@ FEATURE_COLS = [
 ]
 
 TARGET_COL = "adjusted_price"   # dynamic price computed by pipeline
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CHART 9 — Random Forest Feature Importance
+# ══════════════════════════════════════════════════════════════════════════════
+
+def plot_feature_importance(model, feature_cols, metrics=None):
+    """
+    Horizontal bar chart of RF feature importances, sorted descending.
+    Styled to match charts 01-08 (same facecolor, grid, font sizes).
+    """
+    importances = sorted(
+        zip(feature_cols, model.feature_importances_),
+        key=lambda x: x[1], reverse=True
+    )
+    feats  = [FEATURE_LABELS.get(f, f) for f, _ in importances]
+    scores = [s for _, s in importances]
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    y = np.arange(len(feats))
+
+    # Single accent color for the dominant feature, muted gray for the rest
+    colors = ["#3266ad"] + ["#9aa3ad"] * (len(feats) - 1)
+
+    ax.barh(y, scores, color=colors, height=0.6, zorder=3)
+    ax.invert_yaxis()  # largest importance on top
+
+    for i, s in enumerate(scores):
+        ax.text(s + max(scores) * 0.015, i, f"{s:.1%}",
+                va="center", ha="left", fontsize=9.5, fontweight="bold",
+                color="#222")
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(feats, fontsize=11)
+    ax.set_xlabel("Importance (Gini)", fontsize=11)
+
+    title = "Random Forest Feature Importance\n(target: adjusted_price)"
+    if metrics:
+        title += f" · R\u00b2={metrics['r2']:.3f}"
+    ax.set_title(title, fontsize=13, fontweight="bold")
+
+    ax.set_xlim(0, max(scores) * 1.18)
+    ax.grid(axis="x", alpha=0.3)
+    ax.set_facecolor("#fafaf8")
+    fig.tight_layout()
+    fig.savefig(CHART_DIR / "09_feature_importance.png", dpi=150)
+    plt.close()
+    print("✓ Chart 9: feature importance")
 
 
 # ── Main training function ────────────────────────────────────────────────────
@@ -100,6 +165,8 @@ def train_model(
     for feat, imp in importances:
         bar = "█" * int(imp * 40)
         print(f"  {feat:<22} {bar} {imp:.3f}")
+
+    plot_feature_importance(model, FEATURE_COLS, metrics)
 
     # Save
     joblib.dump({"model": model, "features": FEATURE_COLS}, save_path)
