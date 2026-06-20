@@ -342,6 +342,15 @@ def plot_price_distribution(df):
 # ══════════════════════════════════════════════════════════════════════════════
 # CONSOLE REPORT
 # ══════════════════════════════════════════════════════════════════════════════
+def run_sql_analysis(df, sql_path: str = "sql/queries.sql"):
+    import duckdb
+    with open(sql_path, encoding="utf-8") as f:
+        raw = f.read()
+
+    queries = [q.strip() for q in raw.split(";") if q.strip() and not q.strip().startswith("--")]
+    for i, q in enumerate(queries, 1):
+        print(f"\n=== SQL Query {i} ===")
+        print(duckdb.sql(q).df())
 
 def print_report(df, elasticities):
     print("\n" + "═" * 60)
