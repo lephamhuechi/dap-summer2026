@@ -420,6 +420,8 @@ def run_analysis(data_path: str = DATA_PATH):
     df, elasticities = load_pipeline(data_path)
     print(f"Data loaded: {df.shape[0]:,} rows, {df.shape[1]} columns")
 
+    run_sql_analysis(df)
+
     print("\nGenerating charts → charts/")
     plot_elasticity(df)
     plot_cr_vs_price(df)
