@@ -405,6 +405,13 @@ def train_model(
     print("Computing dynamic pricing...")
     df, elasticities = calculate_dynamic_pricing(df)
 
+    df.to_csv(
+        "data/dynamic_pricing_results.csv",
+        index=False
+    )
+
+    print("Saved dynamic pricing dataset")
+
     print("\n── Elasticity estimates by category ──")
     for cat, elast in elasticities.items():
         tag = "elastic  " if elast is not None and elast < -1 else "inelastic"
